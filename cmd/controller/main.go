@@ -26,6 +26,9 @@ import (
 	"github.com/sap/cap-operator/pkg/client/clientset/versioned"
 	istio "istio.io/client-go/pkg/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"net/http"
+	_ "net/http/pprof"
 )
 
 const (
@@ -34,6 +37,12 @@ const (
 
 func main() {
 	klog.SetLogger(util.GetLogger())
+
+	// Profiling
+	go func() {
+		klog.Infoln(http.ListenAndServe("localhost:8081", nil))
+	}()
+
 	config := util.GetConfig()
 	if config == nil {
 		klog.Fatal("Config not found")

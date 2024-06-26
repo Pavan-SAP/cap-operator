@@ -6,12 +6,14 @@ SPDX-License-Identifier: Apache-2.0
 package controller
 
 import (
+	"context"
 	"reflect"
 	"time"
 
 	"github.com/sap/cap-operator/pkg/apis/sme.sap.com/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 )
@@ -72,13 +74,12 @@ type QueueItem struct {
 	ResourceKey NamespacedResourceKey
 }
 
+// Initialize Global informers
 func (c *Controller) initializeInformers() {
 	c.registerCAPTenantListeners()
 	c.registerCAPApplicationListeners()
 	c.registerCAPApplicationVersionListeners()
 	c.registerCAPTenantOperationListeners()
-	c.registerJobListeners()
-	c.registerSecretListeners()
 	c.registerGatewayListeners()
 	c.registerVirtualServiceListeners()
 	c.registerDestinationRuleListeners()
@@ -131,8 +132,8 @@ func (c *Controller) registerCAPTenantOperationListeners() {
 		AddEventHandler(c.getEventHandlerFuncsForResource(ResourceCAPTenantOperation))
 }
 
-func (c *Controller) registerJobListeners() {
-	c.kubeInformerFactory.Batch().V1().Jobs().Informer().
+func (c *Controller) registerJobListeners(f informers.SharedInformerFactory) {
+	f.Batch().V1().Jobs().Informer().
 		AddEventHandler(c.getEventHandlerFuncsForResource(ResourceJob))
 }
 
@@ -146,8 +147,8 @@ func (c *Controller) registerDestinationRuleListeners() {
 		AddEventHandler(c.getEventHandlerFuncsForResource(ResourceDestinationRule))
 }
 
-func (c *Controller) registerSecretListeners() {
-	c.kubeInformerFactory.Core().V1().Secrets().Informer().
+func (c *Controller) registerSecretListeners(f informers.SharedInformerFactory) {
+	f.Core().V1().Secrets().Informer().
 		AddEventHandler(c.getEventHandlerFuncsForResource(ResourceSecret))
 }
 
@@ -169,6 +170,24 @@ func (c *Controller) registerCertManagerCertificateListeners() {
 func (c *Controller) registerGardenerDNSEntrytListeners() {
 	c.gardenerDNSInformerFactory.Dns().V1alpha1().DNSEntries().Informer().
 		AddEventHandler(c.getEventHandlerFuncsForResource(ResourceDNSEntry))
+}
+
+func (c *Controller) kubeInformerFactory(ns string, ctx context.Context) informers.SharedInformerFactory {
+	if f, ok := c.kubeInformerFactories[ns]; ok {
+		return f
+	}
+
+	f := informers.NewSharedInformerFactoryWithOptions(c.kubeClient, 30*time.Minute, informers.WithNamespace(ns))
+
+	// Register informers for the resources that are namespace specific
+	c.registerJobListeners(f)
+	c.registerSecretListeners(f)
+
+	f.Start(ctx.Done())
+	throwInformerStartError(f.WaitForCacheSync(ctx.Done()))
+
+	c.kubeInformerFactories[ns] = f
+	return f
 }
 
 func (c *Controller) enqueueModifiedResource(sourceKey int, new, old interface{}) {

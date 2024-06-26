@@ -241,7 +241,7 @@ func (c *Controller) handleContentDeployJob(ca *v1alpha1.CAPApplication, cav *v1
 	jobName := getContentJobName(workload.Name, cav)
 
 	// Get the contentDeploy job with the name expected for this CAV instance
-	contentDeployJob, err := c.kubeInformerFactory.Batch().V1().Jobs().Lister().Jobs(cav.Namespace).Get(jobName)
+	contentDeployJob, err := c.kubeInformerFactory(cav.Namespace, context.TODO()).Batch().V1().Jobs().Lister().Jobs(cav.Namespace).Get(jobName)
 	// If the resource doesn't exist, we'll create it
 	if k8sErrors.IsNotFound(err) {
 		// Get ServiceInfos for consumed BTP services
@@ -866,7 +866,7 @@ func (c *Controller) checkContentWorkloadStatus(ctx context.Context, cav *v1alph
 
 		// Get the contentDeploy job with the name expected for this CAV instance
 		// The job could get deleted after sometime. So we should also check the finished job list on the CAV status.
-		contentDeployJob, err := c.kubeInformerFactory.Batch().V1().Jobs().Lister().Jobs(cav.Namespace).Get(job)
+		contentDeployJob, err := c.kubeInformerFactory(cav.Namespace, context.TODO()).Batch().V1().Jobs().Lister().Jobs(cav.Namespace).Get(job)
 		if err != nil && !cav.CheckFinishedJobs(job) {
 			return true, nil
 		}
