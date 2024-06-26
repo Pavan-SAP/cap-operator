@@ -101,7 +101,7 @@ func TestController_initializeInformers(t *testing.T) {
 				istioClient:                 c.istioClient,
 				gardenerCertificateClient:   c.gardenerCertificateClient,
 				gardenerDNSClient:           c.gardenerDNSClient,
-				kubeInformerFactory:         c.kubeInformerFactory,
+				kubeInformerFactories:       c.kubeInformerFactories,
 				crdInformerFactory:          c.crdInformerFactory,
 				istioInformerFactory:        c.istioInformerFactory,
 				gardenerCertInformerFactory: c.gardenerCertInformerFactory,

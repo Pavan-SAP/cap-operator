@@ -7,40 +7,16 @@ package controller
 
 import (
 	"context"
-	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/sap/cap-operator/pkg/apis/sme.sap.com/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/informers"
-	"k8s.io/client-go/informers/batch"
-	"k8s.io/client-go/informers/internalinterfaces"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 )
-
-type dummyInformerFactoryType struct {
-	informers.SharedInformerFactory
-	namespace        string
-	tweakListOptions func(*metav1.ListOptions)
-}
-
-func (f *dummyInformerFactoryType) WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool {
-	//Simulate error
-	return map[reflect.Type]bool{reflect.TypeOf(metav1.TypeMeta{}): false}
-}
-
-func (f *dummyInformerFactoryType) Batch() batch.Interface {
-	return f.SharedInformerFactory.Batch()
-}
-
-func (f *dummyInformerFactoryType) InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer {
-	return f.SharedInformerFactory.InformerFor(obj, newFunc)
-}
 
 func TestController_processQueue(t *testing.T) {
 	tests := []struct {
@@ -80,7 +56,9 @@ func TestController_processQueue(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := getTestController(testResources{preventStart: true})
 
-			dummyKubeInformerFactory := &dummyInformerFactoryType{c.kubeInformerFactory, tt.resourceNamespace, nil}
+			dummyKubeInformerFactories := map[string]informers.SharedInformerFactory{
+				tt.resourceNamespace: c.kubeInformerFactory(tt.resourceNamespace, context.TODO()),
+			}
 
 			testC := &Controller{
 				kubeClient:                  c.kubeClient,
@@ -88,7 +66,7 @@ func TestController_processQueue(t *testing.T) {
 				istioClient:                 c.istioClient,
 				gardenerCertificateClient:   c.gardenerCertificateClient,
 				gardenerDNSClient:           c.gardenerDNSClient,
-				kubeInformerFactory:         dummyKubeInformerFactory,
+				kubeInformerFactories:       dummyKubeInformerFactories,
 				crdInformerFactory:          c.crdInformerFactory,
 				istioInformerFactory:        c.istioInformerFactory,
 				gardenerCertInformerFactory: c.gardenerCertInformerFactory,
@@ -231,7 +209,9 @@ func TestController_processQueueItem(t *testing.T) {
 				c.queues[tt.resource] = workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
 			}
 
-			dummyKubeInformerFactory := &dummyInformerFactoryType{c.kubeInformerFactory, tt.resourceNamespace, nil}
+			dummyKubeInformerFactories := map[string]informers.SharedInformerFactory{
+				tt.resourceNamespace: c.kubeInformerFactory(tt.resourceNamespace, context.TODO()),
+			}
 
 			testC := &Controller{
 				kubeClient:                  c.kubeClient,
@@ -239,7 +219,7 @@ func TestController_processQueueItem(t *testing.T) {
 				istioClient:                 c.istioClient,
 				gardenerCertificateClient:   c.gardenerCertificateClient,
 				gardenerDNSClient:           c.gardenerDNSClient,
-				kubeInformerFactory:         dummyKubeInformerFactory,
+				kubeInformerFactories:       dummyKubeInformerFactories,
 				crdInformerFactory:          c.crdInformerFactory,
 				istioInformerFactory:        c.istioInformerFactory,
 				gardenerCertInformerFactory: c.gardenerCertInformerFactory,
@@ -375,7 +355,9 @@ func TestController_recoverFromPanic(t *testing.T) {
 			}
 
 			c := getTestController(testResources{cas: []*v1alpha1.CAPApplication{ca}, cavs: []*v1alpha1.CAPApplicationVersion{cav}, cats: []*v1alpha1.CAPTenant{cat}, ctops: []*v1alpha1.CAPTenantOperation{ctop}, preventStart: true})
-			dummyKubeInformerFactory := &dummyInformerFactoryType{c.kubeInformerFactory, tt.resourceNamespace, nil}
+			dummyKubeInformerFactories := map[string]informers.SharedInformerFactory{
+				tt.resourceNamespace: c.kubeInformerFactory(tt.resourceNamespace, context.TODO()),
+			}
 
 			testC := &Controller{
 				kubeClient:                  c.kubeClient,
@@ -383,7 +365,7 @@ func TestController_recoverFromPanic(t *testing.T) {
 				istioClient:                 c.istioClient,
 				gardenerCertificateClient:   c.gardenerCertificateClient,
 				gardenerDNSClient:           c.gardenerDNSClient,
-				kubeInformerFactory:         dummyKubeInformerFactory,
+				kubeInformerFactories:       dummyKubeInformerFactories,
 				crdInformerFactory:          c.crdInformerFactory,
 				istioInformerFactory:        c.istioInformerFactory,
 				gardenerCertInformerFactory: c.gardenerCertInformerFactory,

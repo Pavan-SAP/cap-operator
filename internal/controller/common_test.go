@@ -443,6 +443,10 @@ func addInitialObjectToStore(t *testing.T, resource []byte, c *Controller) error
 	if err != nil {
 		return err
 	}
+	metaObj, ok := getMetaObject(obj)
+	if !ok {
+		return fmt.Errorf("could not type cast event object to meta object")
+	}
 
 	switch obj.(type) {
 	case *corev1.Secret, *corev1.Pod, *corev1.Namespace, *corev1.Service:
@@ -453,13 +457,13 @@ func addInitialObjectToStore(t *testing.T, resource []byte, c *Controller) error
 		fakeClient.Tracker().Add(obj)
 		switch obj.(type) {
 		case *corev1.Secret:
-			err = c.kubeInformerFactory.Core().V1().Secrets().Informer().GetIndexer().Add(obj)
+			err = c.kubeInformerFactory(metaObj.GetNamespace(), context.TODO()).Core().V1().Secrets().Informer().GetIndexer().Add(obj)
 		case *corev1.Pod:
-			err = c.kubeInformerFactory.Core().V1().Pods().Informer().GetIndexer().Add(obj)
+			err = c.kubeInformerFactory(metaObj.GetNamespace(), context.TODO()).Core().V1().Pods().Informer().GetIndexer().Add(obj)
 		case *corev1.Namespace:
-			err = c.kubeInformerFactory.Core().V1().Namespaces().Informer().GetIndexer().Add(obj)
+			err = c.kubeInformerFactory(metaObj.GetNamespace(), context.TODO()).Core().V1().Namespaces().Informer().GetIndexer().Add(obj)
 		case *corev1.Service:
-			err = c.kubeInformerFactory.Core().V1().Services().Informer().GetIndexer().Add(obj)
+			err = c.kubeInformerFactory(metaObj.GetNamespace(), context.TODO()).Core().V1().Services().Informer().GetIndexer().Add(obj)
 		}
 	case *batchv1.Job:
 		fakeClient, ok := c.kubeClient.(*k8sfake.Clientset)
@@ -467,7 +471,7 @@ func addInitialObjectToStore(t *testing.T, resource []byte, c *Controller) error
 			return fmt.Errorf("controller is not using a fake clientset")
 		}
 		fakeClient.Tracker().Add(obj)
-		err = c.kubeInformerFactory.Batch().V1().Jobs().Informer().GetIndexer().Add(obj)
+		err = c.kubeInformerFactory(metaObj.GetNamespace(), context.TODO()).Batch().V1().Jobs().Informer().GetIndexer().Add(obj)
 	case *gardenercertv1alpha1.Certificate:
 		fakeClient, ok := c.gardenerCertificateClient.(*gardenercertfake.Clientset)
 		if !ok {
@@ -493,10 +497,6 @@ func addInitialObjectToStore(t *testing.T, resource []byte, c *Controller) error
 		fakeClient, ok := c.istioClient.(*istiofake.Clientset)
 		if !ok {
 			return fmt.Errorf("controller is not using a fake clientset")
-		}
-		metaObj, ok := getMetaObject(obj)
-		if !ok {
-			return fmt.Errorf("could not type cast event object to meta object")
 		}
 		switch obj.(type) {
 		case *istionwv1beta1.VirtualService:

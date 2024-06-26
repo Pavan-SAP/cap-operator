@@ -382,18 +382,19 @@ func getTestController(resources testResources) *Controller {
 		c.gardenerDNSInformerFactory.Dns().V1alpha1().DNSEntries().Informer().GetIndexer().Add(resources.dnsEntry)
 	}
 
-	for _, ingressGW := range resources.ingressGW {
-		if ingressGW != nil {
-			c.kubeInformerFactory.Core().V1().Services().Informer().GetIndexer().Add(ingressGW.service)
-			c.kubeInformerFactory.Core().V1().Pods().Informer().GetIndexer().Add(ingressGW.pod)
-		}
-	}
 	if !resources.preventStart {
 		stopCh := make(chan struct{})
 		defer close(stopCh)
 
+		// moved here as calling kubeInformerFactory the 1st time also initialized and starts the shared informer factory (namespace scoped)
+		for _, ingressGW := range resources.ingressGW {
+			if ingressGW != nil {
+				c.kubeInformerFactory(ingressGW.service.Namespace, context.TODO()).Core().V1().Services().Informer().GetIndexer().Add(ingressGW.service)
+				c.kubeInformerFactory(ingressGW.pod.Namespace, context.TODO()).Core().V1().Pods().Informer().GetIndexer().Add(ingressGW.pod)
+			}
+		}
+
 		c.crdInformerFactory.Start(stopCh)
-		c.kubeInformerFactory.Start(stopCh)
 		c.istioInformerFactory.Start(stopCh)
 		switch certificateManager() {
 		case certManagerGardener:

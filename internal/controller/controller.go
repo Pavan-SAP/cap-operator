@@ -42,7 +42,7 @@ type Controller struct {
 	gardenerCertificateClient    gardenerCert.Interface
 	certManagerCertificateClient certManager.Interface
 	gardenerDNSClient            gardenerDNS.Interface
-	kubeInformerFactory          informers.SharedInformerFactory
+	kubeInformerFactories        map[string]informers.SharedInformerFactory
 	crdInformerFactory           crdInformers.SharedInformerFactory
 	istioInformerFactory         istioInformers.SharedInformerFactory
 	gardenerCertInformerFactory  gardenerCertInformers.SharedInformerFactory
@@ -63,7 +63,7 @@ func NewController(client kubernetes.Interface, crdClient versioned.Interface, i
 	}
 
 	// Use 30mins as the default Resync interval for kube / proprietary  resources
-	kubeInformerFactory := informers.NewSharedInformerFactory(client, 30*time.Minute)
+	kubeInformerFactories := map[string]informers.SharedInformerFactory{}
 	istioInformerFactory := istioInformers.NewSharedInformerFactory(istioClient, 30*time.Minute)
 
 	var gardenerCertInformerFactory gardenerCertInformers.SharedInformerFactory
@@ -101,7 +101,7 @@ func NewController(client kubernetes.Interface, crdClient versioned.Interface, i
 		gardenerCertificateClient:    gardenerCertificateClient,
 		certManagerCertificateClient: certManagerCertificateClient,
 		gardenerDNSClient:            gardenerDNSClient,
-		kubeInformerFactory:          kubeInformerFactory,
+		kubeInformerFactories:        kubeInformerFactories,
 		crdInformerFactory:           crdInformerFactory,
 		istioInformerFactory:         istioInformerFactory,
 		gardenerCertInformerFactory:  gardenerCertInformerFactory,
@@ -136,9 +136,7 @@ func (c *Controller) Start(ctx context.Context) {
 	// start event recorder
 	c.eventBroadcaster.StartRecordingToSink(ctx.Done())
 
-	// start informers and wait for cache sync
-	c.kubeInformerFactory.Start(ctx.Done())
-	throwInformerStartError(c.kubeInformerFactory.WaitForCacheSync(ctx.Done()))
+	// start global informers and wait for cache sync
 
 	c.crdInformerFactory.Start(ctx.Done())
 	throwInformerStartError(c.crdInformerFactory.WaitForCacheSync(ctx.Done()))
@@ -306,5 +304,4 @@ func (c *Controller) recoverFromPanic(ctx context.Context, item QueueItem, q wor
 		// Add the item back to the queue to be processed again with a RateLimited delay
 		q.AddRateLimited(item)
 	}
-
 }

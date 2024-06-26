@@ -262,7 +262,7 @@ func (c *Controller) getCachedCAPApplicationVersions(ctx context.Context, ca *v1
 
 func (c *Controller) checkSecretsExist(serviceInfos []v1alpha1.ServiceInfo, namespace string) error {
 	var err error
-	secretLister := c.kubeInformerFactory.Core().V1().Secrets().Lister()
+	secretLister := c.kubeInformerFactory(namespace, context.TODO()).Core().V1().Secrets().Lister()
 
 	for _, service := range serviceInfos {
 		secretName := service.Secret
@@ -276,7 +276,7 @@ func (c *Controller) checkSecretsExist(serviceInfos []v1alpha1.ServiceInfo, name
 func (c *Controller) checkAndPreserveSecrets(serviceInfos []v1alpha1.ServiceInfo, namespace string) error {
 	var err error
 	var secret *corev1.Secret
-	secretLister := c.kubeInformerFactory.Core().V1().Secrets().Lister()
+	secretLister := c.kubeInformerFactory(namespace, context.TODO()).Core().V1().Secrets().Lister()
 
 	for _, service := range serviceInfos {
 		secretName := service.Secret
@@ -296,7 +296,7 @@ func (c *Controller) checkAndPreserveSecrets(serviceInfos []v1alpha1.ServiceInfo
 func (c *Controller) cleanupPreservedSecrets(serviceInfos []v1alpha1.ServiceInfo, namespace string) error {
 	var err error
 	var secret *corev1.Secret
-	secretLister := c.kubeInformerFactory.Core().V1().Secrets().Lister()
+	secretLister := c.kubeInformerFactory(namespace, context.TODO()).Core().V1().Secrets().Lister()
 
 	for _, service := range serviceInfos {
 		secretName := service.Secret
