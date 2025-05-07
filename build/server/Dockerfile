@@ -1,5 +1,5 @@
 # Build stage for go modules
-FROM golang:1.24-alpine as build
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS build
 ARG TARGETOS
 ARG TARGETARCH
 ENV CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH}
