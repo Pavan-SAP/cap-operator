@@ -861,7 +861,7 @@ func prepareResponse(w http.ResponseWriter, admissionReview *admissionv1.Admissi
 		}
 		message = InvalidationMessage
 	}
-	klog.InfoS(message, "kind", admissionReview.Request.Kind.Kind, "operation", string(admissionReview.Request.Operation))
+	klog.InfoS(message, "kind", admissionReview.Request.Kind.Kind, "operation", string(admissionReview.Request.Operation), "details", validation.message)
 
 	if bytes, err := json.Marshal(&finalizedAdmissionReview); err != nil {
 		httpError(w, http.StatusInternalServerError, fmt.Errorf("%s %w", AdmissionError, err))
