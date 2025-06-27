@@ -89,11 +89,13 @@ const (
 )
 
 type payloadDetails struct {
-	tenantId        string
-	subdomain       string
-	globalAccountId string
-	appName         string
-	raw             *map[string]any
+	subscriptionGUID  string
+	tenantId          string
+	subdomain         string
+	globalAccountId   string
+	appName           string
+	commercialAppName string
+	raw               *map[string]any
 }
 
 type headerDetails struct {
@@ -722,7 +724,7 @@ func (s *SubscriptionHandler) HandleSMSRequest(w http.ResponseWriter, req *http.
 func DecodeRequest(req *http.Request, subscriptionType subscriptionType) (*RequestInfo, error) {
 	klog.InfoS("------> METHOD %s, HEADERS: %v ---END", req.Method, req.Header)
 
-	var tenantId, subdomain, globalAccountId, appName string
+	var tenantId, subdomain, globalAccountId, appName, commercialAppName string
 	decoder := json.NewDecoder(req.Body)
 	var jsonPayload map[string]any
 	err := decoder.Decode(&jsonPayload)
@@ -730,7 +732,9 @@ func DecodeRequest(req *http.Request, subscriptionType subscriptionType) (*Reque
 		return nil, fmt.Errorf("error decoding request: %w", err)
 	}
 
-	klog.InfoS("------> Decoded request payload for %s subscription, payload: %v ---END", subscriptionType, req)
+	tmp, _ := json.Marshal(jsonPayload)
+
+	klog.InfoS("------> Decoded request payload for %v subscription, payload: %v ---END", subscriptionType, tmp)
 
 	headerDetails := &headerDetails{
 		authorization: req.Header.Get("Authorization"),
@@ -739,24 +743,33 @@ func DecodeRequest(req *http.Request, subscriptionType subscriptionType) (*Reque
 
 	switch subscriptionType {
 	case SMS:
-		tenantId = jsonPayload["app_tId"].(string)
+		tenantId = jsonPayload["app_tid"].(string)
+		subdomain = jsonPayload["subaccountSubdomain"].(string)
+		globalAccountId = jsonPayload["globalAccountId"].(string)
+		rootApp := jsonPayload["rootApplication"].(map[string]any)
+		appName = rootApp["appName"].(string)
+		commercialAppName = rootApp["commercialAppName"].(string)
 	default:
 		tenantId = jsonPayload["subscribedTenantId"].(string)
 		subdomain = jsonPayload["subscribedSubdomain"].(string)
 		globalAccountId = jsonPayload["globalAccountGUID"].(string)
 		appName = jsonPayload["subscriptionAppName"].(string)
+		commercialAppName = jsonPayload["subscriptionCommercialAppName"].(string)
 	}
 
 	payload := &payloadDetails{
-		tenantId:        tenantId,
-		subdomain:       subdomain,
-		globalAccountId: globalAccountId,
-		appName:         appName,
-		raw:             &jsonPayload,
+		// GTID
+		subscriptionGUID:  jsonPayload["subscriptionGUID"].(string),
+		tenantId:          tenantId,
+		subdomain:         subdomain,
+		globalAccountId:   globalAccountId,
+		appName:           appName,
+		commercialAppName: commercialAppName,
+		raw:               &jsonPayload,
 	}
 
 	return &RequestInfo{
-		subscriptionType: SaaS,
+		subscriptionType: subscriptionType,
 		payload:          payload,
 		headerDetails:    headerDetails,
 	}, nil
