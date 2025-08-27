@@ -2,7 +2,7 @@ name: Container Vuln Scans
 on:
 
   schedule:
-    - cron:  '30 19 * * *'
+    - cron:  '30 21 * * *'
 
   workflow_dispatch:
 
@@ -34,4 +34,3 @@ jobs:
         with:
           image-ref: 'ghcr.io/sap/cap-operator/${{ matrix.workload }}'
           exit-code: '1'
-          skip-setup-trivy: true
