@@ -1,10 +1,16 @@
-name: Container Vuln Scans
+name: CAP Operator Container Vuln Scans
 on:
 
   schedule:
-    - cron:  '30 21 * * *'
+    - cron:  '30 9 * * *'
 
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Image tag to scan'
+        required: false
+        default: 'latest'
+        type: string
 
 permissions:
   packages: read
@@ -21,7 +27,7 @@ jobs:
       - name: Run vulnerability scanner
         uses: aquasecurity/trivy-action@0.32.0
         with:
-          image-ref: 'ghcr.io/sap/cap-operator/${{ matrix.workload }}'
+          image-ref: 'ghcr.io/sap/cap-operator/${{ matrix.workload }}:${{ github.event.inputs.version }}'
           scanners: 'vuln'
           exit-code: '1'
           version: 'v0.65.0'
@@ -32,4 +38,3 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'vuln-${{ matrix.workload }}.sarif'
-
