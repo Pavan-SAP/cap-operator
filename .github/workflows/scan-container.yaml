@@ -1,0 +1,29 @@
+name: Container Vuln Scans
+on:
+
+  schedule:
+    - cron:  '30 19 * * *'
+
+  workflow_dispatch:
+  
+  push:
+    branches:
+      - main
+  
+  pull_request:
+
+permissions:
+  packages: read
+  pull-requests: read
+  
+jobs:
+  scan:
+    name: Scan Container Image
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Run vulnerability scanner
+        uses: aquasecurity/trivy-action@v0.32.0
+        with:
+          image-ref: 'ghcr.io/sap/cap-operator/controller:0.19.0'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
