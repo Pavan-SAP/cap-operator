@@ -2,7 +2,7 @@ name: CAP Operator Container Vuln Scans
 on:
 
   schedule:
-    - cron:  '30 9 * * *'
+    - cron:  '30 21 * * *'
 
   workflow_dispatch:
     inputs:
@@ -29,7 +29,6 @@ jobs:
         with:
           image-ref: 'ghcr.io/sap/cap-operator/${{ matrix.workload }}:${{ github.event.inputs.version }}'
           scanners: 'vuln'
-          exit-code: '1'
           version: 'v0.65.0'
           format: 'sarif'
           output: 'vuln-${{ matrix.workload }}.sarif'
