@@ -2,7 +2,7 @@ name: CAP Operator Container Vuln Scans
 on:
 
   schedule:
-    - cron:  '53 10,12 * * *'
+    - cron:  '05 11,13 * * *'
 
   workflow_dispatch:
     inputs:
@@ -37,3 +37,4 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'vuln-${{ matrix.workload }}.sarif'
+
