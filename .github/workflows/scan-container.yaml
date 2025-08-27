@@ -11,11 +11,8 @@ permissions:
   pull-requests: read
   
 jobs:
-  scan:
-    name: Scan Images
-    strategy:
-      matrix:
-        workload: ["controller", "server", "web-hooks"]
+  setup:
+    name: Setup trivy
     runs-on: ubuntu-24.04
     steps:
       - name: Setup trivy
@@ -23,7 +20,15 @@ jobs:
         with:
           version: v0.65.0
           cache: true
-
+  
+  scan:
+    name: Scan Image
+    needs: setup
+    strategy:
+      matrix:
+        workload: ["controller", "server", "web-hooks"]
+    runs-on: ubuntu-24.04
+    steps:
       - name: Run vulnerability scanner
         uses: aquasecurity/trivy-action@0.32.0
         with:
