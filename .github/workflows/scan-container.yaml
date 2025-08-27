@@ -5,12 +5,6 @@ on:
     - cron:  '30 19 * * *'
 
   workflow_dispatch:
-  
-  push:
-    branches:
-      - main
-  
-  pull_request:
 
 permissions:
   packages: read
@@ -18,13 +12,21 @@ permissions:
   
 jobs:
   scan:
-    name: Scan Container Image
+    name: Scan Images
+    strategy:
+      matrix:
+        workload: ["controller", "server", "web-hooks"]
     runs-on: ubuntu-24.04
     steps:
+      - name: Setup trivy
+        uses: aquasecurity/setup-trivy@v0.2.3
+        with:
+          version: v0.65.0
+          cache: true
+
       - name: Run vulnerability scanner
         uses: aquasecurity/trivy-action@0.32.0
         with:
-          image-ref: 'ghcr.io/sap/cap-operator/controller:0.19.0'
+          image-ref: 'ghcr.io/sap/cap-operator/${{ matrix.workload }}'
           exit-code: '1'
-
-          severity: 'CRITICAL,HIGH'
+          skip-setup-trivy: true
