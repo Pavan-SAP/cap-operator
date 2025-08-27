@@ -22,8 +22,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Run vulnerability scanner
-        uses: aquasecurity/trivy-action@v0.32.0
+        uses: aquasecurity/trivy-action@0.32.0
         with:
           image-ref: 'ghcr.io/sap/cap-operator/controller:0.19.0'
           exit-code: '1'
+
           severity: 'CRITICAL,HIGH'
