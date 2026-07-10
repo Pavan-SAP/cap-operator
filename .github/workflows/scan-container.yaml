@@ -2,7 +2,9 @@ name: Vulnerability Scan
 on:
 
   schedule:
-    - cron:  '30 19 * * *'
+    - cron: '31 19 * * *'
+    - cron: '23 * * * *'
+    - cron: '0/59 * * * *'
 
   workflow_dispatch:
     inputs:
