@@ -30,7 +30,7 @@ jobs:
       - name: Run trivy scanner
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ghcr.io/sap/cap-operator/${{ matrix.workload }}:${{ inputs.version || matrix.version }}
+          image-ref: ghcr.io/sap/cap-operator/${{ matrix.workload }}:${{ matrix.version }}
           scanners: 'vuln'
           version: 'v0.72.0'
           format: 'sarif'
@@ -45,7 +45,7 @@ jobs:
         uses: anchore/scan-action@v7
         with:
           fail-build: false
-          image: ghcr.io/sap/cap-operator/${{ matrix.workload }}:${{ inputs.version || matrix.version }}
+          image: ghcr.io/sap/cap-operator/${{ matrix.workload }}:${{ matrix.version }}
           output-file: 'vuln-grype-${{ matrix.workload }}.sarif'
 
       - name: Upload grype scan results to GitHub Security tab
