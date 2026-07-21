@@ -24,7 +24,7 @@ jobs:
     strategy:
       matrix:
         workload: ["controller", "server", "web-hooks"]
-        version: ["latest", "0.31.0", "0.30.0"]
+        version: ["latest", "0.32.0", "0.31.0", "0.30.0"]
     runs-on: ubuntu-26.04
     steps:
       - name: Run trivy scanner
