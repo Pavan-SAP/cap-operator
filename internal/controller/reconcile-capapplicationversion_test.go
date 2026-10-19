@@ -182,6 +182,23 @@ func TestCAV_ContentJobFailedReconcilation(t *testing.T) {
 	)
 }
 
+func TestCAV_ContentJobFailedAndRemovedReconcilation(t *testing.T) {
+	reconcileTestItem(
+		context.TODO(), t,
+		QueueItem{Key: ResourceCAPApplicationVersion, ResourceKey: NamespacedResourceKey{Namespace: "default", Name: "test-cap-01-cav-v1"}},
+		TestData{
+			description: "Reconcile error capapplication version with failed content job, that is in the meanwhile deleted",
+			initialResources: []string{
+				"testdata/common/capapplication.yaml",
+				"testdata/common/credential-secrets.yaml",
+				"testdata/capapplicationversion/cav-failed-content-job.yaml",
+			},
+			expectedResources: "testdata/capapplicationversion/expected/cav-failed-content-job.yaml",
+			expectError:       true,
+		},
+	)
+}
+
 func TestCAV_ContentJobCompletedFromProcessing(t *testing.T) {
 	reconcileTestItem(
 		context.TODO(), t,
@@ -916,7 +933,7 @@ func TestCAV_ServicesOnlyError(t *testing.T) {
 			expectError:  true,
 			mockErrorForResources: []ResourceAction{
 				{Verb: "create", Group: "apps", Version: "v1", Resource: "deployments", Namespace: "default", Name: "*"},
-				{Verb: "update", Group: "sme.sap.com", Version: "v1alpha1", Resource: "capapplicationversions", Namespace: "default", Name: "*"},
+				{Verb: "update", Group: "sme.sap.com", Version: "v1alpha2", Resource: "capapplicationversions", Namespace: "default", Name: "*"},
 			},
 		},
 	)

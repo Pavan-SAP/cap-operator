@@ -455,11 +455,11 @@ func TestProviderTenantCreationError(t *testing.T) {
 			},
 			expectedResources:     "testdata/capapplication/ca-43.expected.yaml",
 			expectError:           true,
-			mockErrorForResources: []ResourceAction{{Verb: "create", Group: "sme.sap.com", Version: "v1alpha1", Resource: "captenants", Namespace: "*", Name: "*"}},
+			mockErrorForResources: []ResourceAction{{Verb: "create", Group: "sme.sap.com", Version: "v1alpha2", Resource: "captenants", Namespace: "*", Name: "*"}},
 		},
 	)
 
-	if err.Error() != "mocked api error (captenants.sme.sap.com/v1alpha1)" {
+	if err.Error() != "mocked api error (captenants.sme.sap.com/v1alpha2)" {
 		t.Error("Wrong error message")
 	}
 }
@@ -680,4 +680,47 @@ func TestCA_WithBothCAPAndServiceWorkloads(t *testing.T) {
 			expectedRequeue:   map[int][]NamespacedResourceKey{ResourceDomain: {{Namespace: "default", Name: "test-cap-01-primary"}}, ResourceClusterDomain: {{Namespace: "", Name: "test-cap-01-secondary"}}},
 		},
 	)
+}
+
+func TestCAPApplicationMissingProviderSubaccountId(t *testing.T) {
+	reconcileTestItem(
+		context.TODO(), t,
+		QueueItem{Key: ResourceCAPApplication, ResourceKey: NamespacedResourceKey{Namespace: "default", Name: "test-cap-01"}},
+		TestData{
+			description: "CAPApplication without providerSubaccountId transitions to Error state",
+			initialResources: []string{
+				"testdata/capapplication/ca-missing-subaccount.initial.yaml",
+			},
+			expectedResources: "testdata/capapplication/ca-missing-subaccount.expected.yaml",
+		},
+	)
+}
+
+func TestCAPApplicationTenantVersionUpgradeUpdateError(t *testing.T) {
+	err := reconcileTestItem(
+		context.TODO(), t,
+		QueueItem{Key: ResourceCAPApplication, ResourceKey: NamespacedResourceKey{Namespace: "default", Name: "test-cap-01"}},
+		TestData{
+			description: "Consistent state with a new (ready) CAV but updating the tenant to the latest version fails",
+			initialResources: []string{
+				"testdata/common/domain-ready.yaml",
+				"testdata/common/cluster-domain-ready.yaml",
+				"testdata/capapplication/ca-31.initial.yaml",
+				"testdata/capapplication/cav-name-modified-ready.yaml",
+				"testdata/capapplication/cat-provider-no-finalizers-ready.yaml",
+				"testdata/common/credential-secrets.yaml",
+			},
+			expectError:           true,
+			mockErrorForResources: []ResourceAction{{Verb: "update", Group: "sme.sap.com", Version: "v1alpha2", Resource: "captenants", Namespace: "*", Name: "*"}},
+			expectedRequeue: map[int][]NamespacedResourceKey{
+				ResourceCAPTenant: {
+					{Namespace: "default", Name: "test-cap-01-provider"},
+				},
+			},
+		},
+	)
+
+	if err == nil || err.Error() != "could not update CAPTenant default.test-cap-01-provider: mocked api error (captenants.sme.sap.com/v1alpha2)" {
+		t.Errorf("Wrong error message: %v", err)
+	}
 }

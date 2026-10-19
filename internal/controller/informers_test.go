@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sap/cap-operator/pkg/apis/sme.sap.com/v1alpha1"
+	"github.com/sap/cap-operator/pkg/apis/sme.sap.com/v1alpha2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
@@ -17,7 +17,7 @@ import (
 
 // secretHandlerFixture builds a controller with the given CAPApplications pre-loaded
 // and attaches a real rolloutManager so the handler can enqueue into it.
-func secretHandlerFixture(cas []*v1alpha1.CAPApplication) *Controller {
+func secretHandlerFixture(cas []*v1alpha2.CAPApplication) *Controller {
 	c := getTestController(testResources{cas: cas})
 	c.rolloutManager = newRolloutManager(c)
 	return c
@@ -144,8 +144,8 @@ func TestController_initializeInformers(t *testing.T) {
 				res = createCaCRO(tt.itemName, false)
 			case ResourceCAPApplicationVersion:
 				ca := createCaCRO(tt.itemName, false)
-				cav := createCavCRO(tt.itemName, v1alpha1.CAPApplicationVersionStateReady, defaultVersion)
-				cav.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ca, v1alpha1.SchemeGroupVersion.WithKind(v1alpha1.CAPApplicationKind))}
+				cav := createCavCRO(tt.itemName, v1alpha2.CAPApplicationVersionStateReady, defaultVersion)
+				cav.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(ca, v1alpha2.SchemeGroupVersion.WithKind(v1alpha2.CAPApplicationKind))}
 				res = cav
 			case ResourceCertificate:
 				// set label on a pod to simulate certificate in a different namespace
@@ -191,7 +191,7 @@ func TestController_initializeInformers(t *testing.T) {
 func TestSecretHandler_SameResourceVersion(t *testing.T) {
 	defer deregisterMetrics()
 	ca := buildCA("test-cap-01", true, btpServices())
-	c := secretHandlerFixture([]*v1alpha1.CAPApplication{ca})
+	c := secretHandlerFixture([]*v1alpha2.CAPApplication{ca})
 
 	handler := c.getSecretEventHandlerFuncs()
 	old := secretV("cap-cap-01-uaa-bind-cf", metav1.NamespaceDefault, "1")
@@ -240,7 +240,7 @@ func TestSecretHandler_NoCAPApplicationsInNamespace(t *testing.T) {
 func TestSecretHandler_AllCAsRolloutDisabled(t *testing.T) {
 	defer deregisterMetrics()
 	ca := buildCA("test-cap-01", false /* disabled */, btpServices())
-	c := secretHandlerFixture([]*v1alpha1.CAPApplication{ca})
+	c := secretHandlerFixture([]*v1alpha2.CAPApplication{ca})
 
 	handler := c.getSecretEventHandlerFuncs()
 	old := secretV("cap-cap-01-uaa-bind-cf", metav1.NamespaceDefault, "1")
@@ -259,7 +259,7 @@ func TestSecretHandler_AllCAsRolloutDisabled(t *testing.T) {
 func TestSecretHandler_OneCAWithRolloutEnabled(t *testing.T) {
 	defer deregisterMetrics()
 	ca := buildCA("test-cap-01", true, btpServices())
-	c := secretHandlerFixture([]*v1alpha1.CAPApplication{ca})
+	c := secretHandlerFixture([]*v1alpha2.CAPApplication{ca})
 
 	handler := c.getSecretEventHandlerFuncs()
 	old := secretV("cap-cap-01-uaa-bind-cf", metav1.NamespaceDefault, "1")
@@ -283,7 +283,7 @@ func TestSecretHandler_EnqueuesOnceWithMixedCAs(t *testing.T) {
 	defer deregisterMetrics()
 	caDisabled := buildCA("test-cap-disabled", false, btpServices())
 	caEnabled := buildCA("test-cap-enabled", true, btpServices())
-	c := secretHandlerFixture([]*v1alpha1.CAPApplication{caDisabled, caEnabled})
+	c := secretHandlerFixture([]*v1alpha2.CAPApplication{caDisabled, caEnabled})
 
 	handler := c.getSecretEventHandlerFuncs()
 	old := secretV("cap-cap-01-uaa-bind-cf", metav1.NamespaceDefault, "1")
@@ -322,7 +322,7 @@ func TestSecretHandler_OnlyUpdateFuncWired(t *testing.T) {
 func TestSecretHandler_MultipleDistinctSecrets(t *testing.T) {
 	defer deregisterMetrics()
 	ca := buildCA("test-cap-01", true, btpServices())
-	c := secretHandlerFixture([]*v1alpha1.CAPApplication{ca})
+	c := secretHandlerFixture([]*v1alpha2.CAPApplication{ca})
 
 	handler := c.getSecretEventHandlerFuncs()
 	for i, name := range []string{"secret-a", "secret-b", "secret-c"} {
@@ -334,4 +334,111 @@ func TestSecretHandler_MultipleDistinctSecrets(t *testing.T) {
 	if len(got) != 3 {
 		t.Fatalf("expected 3 pending secrets, got %d: %v", len(got), got)
 	}
+}
+
+func TestHasReconciliationRelevantChanges(t *testing.T) {
+	base := &metav1.ObjectMeta{
+		Name:            "x",
+		Namespace:       metav1.NamespaceDefault,
+		Generation:      1,
+		Annotations:     map[string]string{"a": "b"},
+		OwnerReferences: []metav1.OwnerReference{{Name: "owner"}},
+	}
+
+	if hasReconciliationRelevantChanges(base.DeepCopy(), base) {
+		t.Error("expected no relevant changes for identical objects")
+	}
+
+	genChanged := base.DeepCopy()
+	genChanged.Generation = 2
+	if !hasReconciliationRelevantChanges(genChanged, base) {
+		t.Error("expected a generation change to be relevant")
+	}
+
+	annChanged := base.DeepCopy()
+	annChanged.Annotations = map[string]string{"a": "c"}
+	if !hasReconciliationRelevantChanges(annChanged, base) {
+		t.Error("expected an annotation change to be relevant")
+	}
+
+	ownerChanged := base.DeepCopy()
+	ownerChanged.OwnerReferences = []metav1.OwnerReference{{Name: "other"}}
+	if !hasReconciliationRelevantChanges(ownerChanged, base) {
+		t.Error("expected an owner reference change to be relevant")
+	}
+}
+
+func TestDetermineQueueItem(t *testing.T) {
+	// self change, delete (newObj nil) -> no enqueue
+	if item := determineQueueItem(ResourceCAPApplication, ResourceCAPApplication, &metav1.ObjectMeta{Name: "x"}, nil, v1alpha2.CAPApplicationKind); item != nil {
+		t.Error("expected nil queue item on self delete")
+	}
+
+	// self change, no reconciliation-relevant change -> no enqueue
+	old := &metav1.ObjectMeta{Name: "x", Namespace: metav1.NamespaceDefault, Generation: 1}
+	if item := determineQueueItem(ResourceCAPApplication, ResourceCAPApplication, old, old.DeepCopy(), v1alpha2.CAPApplicationKind); item != nil {
+		t.Error("expected nil queue item when there are no relevant changes")
+	}
+
+	// self change, relevant change -> enqueue the resource itself
+	changed := old.DeepCopy()
+	changed.Generation = 2
+	item := determineQueueItem(ResourceCAPApplication, ResourceCAPApplication, old, changed, v1alpha2.CAPApplicationKind)
+	if item == nil || item.ResourceKey.Name != "x" {
+		t.Errorf("expected queue item for the changed resource, got: %v", item)
+	}
+
+	// dependent create (oldObj nil) -> skip (owner would have created it)
+	if item := determineQueueItem(ResourceCAPApplication, ResourceCAPTenant, nil, &metav1.ObjectMeta{Name: "t"}, v1alpha2.CAPApplicationKind); item != nil {
+		t.Error("expected nil queue item on dependent create")
+	}
+
+	// dependent with a matching owner reference -> enqueue the owner
+	depNew := &metav1.ObjectMeta{
+		Name:      "tenant-1",
+		Namespace: metav1.NamespaceDefault,
+		OwnerReferences: []metav1.OwnerReference{
+			{APIVersion: v1alpha2.Group + "/v1alpha2", Kind: v1alpha2.CAPApplicationKind, Name: "owner-ca"},
+		},
+	}
+	item = determineQueueItem(ResourceCAPApplication, ResourceCAPTenant, depNew.DeepCopy(), depNew, v1alpha2.CAPApplicationKind)
+	if item == nil || item.ResourceKey.Name != "owner-ca" {
+		t.Errorf("expected queue item for the owner, got: %v", item)
+	}
+
+	// dependent delete (newObj nil) -> owner resolved from oldObj
+	item = determineQueueItem(ResourceCAPApplication, ResourceCAPTenant, depNew, nil, v1alpha2.CAPApplicationKind)
+	if item == nil || item.ResourceKey.Name != "owner-ca" {
+		t.Errorf("expected queue item for the owner on dependent delete, got: %v", item)
+	}
+
+	// dependent without a resolvable owner -> skip
+	depNoOwner := &metav1.ObjectMeta{Name: "tenant-2", Namespace: metav1.NamespaceDefault}
+	if item := determineQueueItem(ResourceCAPApplication, ResourceCAPTenant, depNoOwner.DeepCopy(), depNoOwner, v1alpha2.CAPApplicationKind); item != nil {
+		t.Error("expected nil queue item when the owner cannot be resolved")
+	}
+}
+
+func TestGetEventHandlerFuncsForResource(t *testing.T) {
+	defer deregisterMetrics()
+	c := getTestController(testResources{})
+
+	// unmapped resource -> empty handler
+	empty := c.getEventHandlerFuncsForResource(99999)
+	if empty.AddFunc != nil || empty.UpdateFunc != nil || empty.DeleteFunc != nil {
+		t.Error("expected an empty handler for an unmapped resource")
+	}
+
+	// mapped resource -> wired handler funcs; invoke them to exercise the enqueue closures
+	h := c.getEventHandlerFuncsForResource(ResourceCAPApplication)
+	if h.AddFunc == nil || h.UpdateFunc == nil || h.DeleteFunc == nil {
+		t.Fatal("expected wired handler funcs for a mapped resource")
+	}
+	ca := &v1alpha2.CAPApplication{ObjectMeta: metav1.ObjectMeta{Name: "ca", Namespace: metav1.NamespaceDefault, Generation: 1, ResourceVersion: "1"}}
+	caUpd := ca.DeepCopy()
+	caUpd.Generation = 2
+	caUpd.ResourceVersion = "2"
+	h.AddFunc(ca)
+	h.UpdateFunc(ca, caUpd)
+	h.DeleteFunc(ca)
 }
