@@ -132,6 +132,11 @@ func (in *CAPApplicationSpec) DeepCopyInto(out *CAPApplicationSpec) {
 		**out = **in
 	}
 	in.BTP.DeepCopyInto(&out.BTP)
+	if in.MaxSubscriptions != nil {
+		in, out := &in.MaxSubscriptions, &out.MaxSubscriptions
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 
@@ -737,7 +742,11 @@ func (in *CommonDetails) DeepCopyInto(out *CommonDetails) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	in.Resources.DeepCopyInto(&out.Resources)
+	if in.Resources != nil {
+		in, out := &in.Resources, &out.Resources
+		*out = new(v1.ResourceRequirements)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.SecurityContext != nil {
 		in, out := &in.SecurityContext, &out.SecurityContext
 		*out = new(v1.SecurityContext)
@@ -1402,7 +1411,7 @@ func (in *SubscriptionProvider) DeepCopyInto(out *SubscriptionProvider) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
-	out.Spec = in.Spec
+	in.Spec.DeepCopyInto(&out.Spec)
 	return
 }
 
@@ -1461,6 +1470,11 @@ func (in *SubscriptionProviderList) DeepCopyObject() runtime.Object {
 func (in *SubscriptionProviderSpec) DeepCopyInto(out *SubscriptionProviderSpec) {
 	*out = *in
 	out.SubscriptionInfo = in.SubscriptionInfo
+	if in.MaxSubscriptions != nil {
+		in, out := &in.MaxSubscriptions, &out.MaxSubscriptions
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 
